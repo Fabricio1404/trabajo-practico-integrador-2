@@ -3,7 +3,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
-import { connectDatabase } from './src/config/database.js';
+import { connectDatabase } from './config/database.js';
+import apiRoutes from './src/routes/index.js'; 
 
 const app = express();
 
@@ -12,14 +13,16 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(cookieParser());
 
-
-const allowedOrigin = process.env.CORS_ORIGIN ;
+// CORS
+const allowedOrigin = process.env.CORS_ORIGIN;
 app.use(cors({ origin: allowedOrigin, credentials: true }));
 
 // Healthcheck
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, ts: new Date().toISOString() });
 });
+
+app.use('/api', apiRoutes);
 
 const PORT = process.env.PORT || 3000;
 
