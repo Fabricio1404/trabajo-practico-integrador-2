@@ -9,7 +9,6 @@ import {
 
 const router = Router();
 
-// Por ahora SIN middlewares ni validaciones
 router.post('/', createTag);
 router.get('/', listTags);
 router.get('/:id', getTag);

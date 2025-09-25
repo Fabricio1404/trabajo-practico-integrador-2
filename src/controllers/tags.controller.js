@@ -1,7 +1,7 @@
 import { Tag } from '../models/tag.model.js';
-import { Article } from '../models/article.model.js';
+import { Article } from '../models/articles.model.js';
 
-// POST /tags
+// POST 
 export async function createTag(req, res) {
   try {
     const { name, description } = req.body;
@@ -15,7 +15,7 @@ export async function createTag(req, res) {
   }
 }
 
-// GET /tags
+// GET 
 export async function listTags(req, res) {
   try {
     const tags = await Tag.find({}).lean();
@@ -25,7 +25,7 @@ export async function listTags(req, res) {
   }
 }
 
-// GET /tags/:id
+// GET 
 export async function getTag(req, res) {
   try {
     const tag = await Tag.findById(req.params.id).lean();
@@ -42,7 +42,7 @@ export async function getTag(req, res) {
   }
 }
 
-// PUT /tags/:id
+// PUT 
 export async function updateTag(req, res) {
   try {
     const { name, description } = req.body;
@@ -59,13 +59,12 @@ export async function updateTag(req, res) {
   }
 }
 
-// DELETE /tags/:id
+// DELETE 
 export async function deleteTag(req, res) {
   try {
     const tag = await Tag.findByIdAndDelete(req.params.id);
     if (!tag) return res.status(404).json({ error: 'No encontrado' });
 
-    // cascada: remover la tag de todos los artículos
     await Article.updateMany({ tags: tag._id }, { $pull: { tags: tag._id } });
 
     return res.json({ message: 'Tag eliminada y removida de artículos' });

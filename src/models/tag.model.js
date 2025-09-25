@@ -9,7 +9,7 @@ const tagSchema = new mongoose.Schema({
     minlength: 2,
     maxlength: 30,
     validate: {
-      validator: (v) => /^\S+$/.test(v), // sin espacios
+      validator: (v) => /^\S+$/.test(v), 
       message: 'El nombre no debe contener espacios'
     }
   },
@@ -19,7 +19,7 @@ const tagSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// índice único por name (refuerza la unicidad)
+
 tagSchema.index({ name: 1 }, { unique: true });
 
 export const Tag = mongoose.model('Tag', tagSchema);
