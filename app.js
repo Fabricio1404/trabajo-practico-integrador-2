@@ -3,7 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
-import { connectDatabase } from './config/database.js';
+import { connectDatabase } from './src/config/database.js';
 import apiRoutes from './src/routes/index.js'; 
 
 const app = express();
