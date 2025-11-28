@@ -1,17 +1,6 @@
-import { verifyToken } from '../helpers/jwt.helper.js';
-
-export function authMiddleware(req, res, next) {
-  try {
-    const token = req.cookies.token;
-    if (!token) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    const decoded = verifyToken(token);
-    req.user = decoded;
-
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Token inválido o expirado' });
+export const adminMiddleware = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Acceso solo para administradores' });
   }
-}
+  next();
+};
