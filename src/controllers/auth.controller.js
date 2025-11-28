@@ -1,49 +1,68 @@
+import { matchedData } from 'express-validator';
 import { User } from '../models/user.model.js';
+import { hashPassword, comparePassword } from '../helpers/bcrypt.helper.js';
+import { generateToken } from '../helpers/jwt.helper.js';
 
-
-// POST /auth/register
 export async function register(req, res) {
   try {
-    const { username, email, password, firstName, lastName, biography, avatarUrl } = req.body;
+    const data = matchedData(req, { locations: ['body'], nested: true });
 
-    if (!username || !email || !password || !firstName || !lastName) {
-      return res.status(400).json({ error: 'Faltan campos obligatorios' });
-    }
-
-    const exists = await User.findOne({ $or: [{ username }, { email }] });
-    if (exists) return res.status(400).json({ error: 'Username o email ya registrados' });
-
-    const user = await User.create({
-      username,
-      email,
-      passwordHash: String(password), 
-      role: 'user',
-      profile: { firstName, lastName, biography, avatarUrl }
+    const exists = await User.findOne({
+      $or: [{ username: data.username }, { email: data.email }]
     });
 
-    return res.status(201).json({ id: user._id, username: user.username, email: user.email });
+    if (exists) {
+      return res.status(400).json({ error: 'Username o email ya registrados' });
+    }
+
+    const passwordHash = await hashPassword(data.password);
+
+    const user = await User.create({
+      username: data.username,
+      email: data.email,
+      passwordHash,
+      role: 'user',
+      profile: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        biography: data.biography || '',
+        avatarUrl: data.avatarUrl || ''
+      }
+    });
+
+    const plainUser = user.toObject();
+    delete plainUser.passwordHash;
+
+    return res.status(201).json(plainUser);
   } catch (err) {
     return res.status(500).json({ error: 'Error registrando usuario', detail: err.message });
   }
 }
 
-// POST /auth/login
 export async function login(req, res) {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'email y password son obligatorios' });
+    const data = matchedData(req, { locations: ['body'], nested: true });
 
-    const user = await User.findOne({ email, deletedAt: null });
-    if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+    const user = await User.findOne({ email: data.email, deletedAt: null });
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
-    const ok = String(password) === user.passwordHash;
-    if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
+    const ok = await comparePassword(data.password, user.passwordHash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
-    res.cookie('token', String(user._id), {
+    const token = generateToken({
+      id: user._id.toString(),
+      role: user.role
+    });
+
+    res.cookie('token', token, {
       httpOnly: true,
       sameSite: 'lax',
       secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 60 * 60 * 1000
     });
 
     return res.json({ message: 'Login OK' });
@@ -52,14 +71,14 @@ export async function login(req, res) {
   }
 }
 
-// GET /auth/profile
 export async function profile(req, res) {
   try {
-    const userId = req.cookies?.token; // ⚠️ temporal
-    if (!userId) return res.status(401).json({ error: 'No autenticado' });
+    const userId = req.user.id;
 
     const user = await User.findOne({ _id: userId, deletedAt: null }).lean();
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
 
     delete user.passwordHash;
     return res.json(user);
@@ -68,15 +87,13 @@ export async function profile(req, res) {
   }
 }
 
-// PUT /auth/profile
 export async function updateProfile(req, res) {
   try {
-    const userId = req.cookies?.token; // ⚠️ temporal
-    if (!userId) return res.status(401).json({ error: 'No autenticado' });
+    const userId = req.user.id;
 
     const updates = {
       'profile.firstName': req.body.firstName,
-      'profile.lastName' : req.body.lastName,
+      'profile.lastName': req.body.lastName,
       'profile.biography': req.body.biography,
       'profile.avatarUrl': req.body.avatarUrl
     };
@@ -87,7 +104,10 @@ export async function updateProfile(req, res) {
       { new: true }
     ).lean();
 
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
     delete user.passwordHash;
     return res.json(user);
   } catch (err) {
@@ -95,7 +115,6 @@ export async function updateProfile(req, res) {
   }
 }
 
-// POST /auth/logout
 export async function logout(req, res) {
   try {
     res.clearCookie('token');
